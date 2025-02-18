@@ -1,4 +1,7 @@
-<?php require_once 'constants.php'; ?>
+<?php
+require_once 'constants.php';
+$page = isset($_GET['page']) ? $_GET['page'] : 'home';
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -16,8 +19,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 90vh;
+            <?php if ($page == 'home'): ?>
+                justify-content: center;
+                height: 90vh;
+            <?php endif; ?>
             text-align: center;
         }
 
@@ -61,7 +66,6 @@
 </head>
 <body>
     <?php
-    $page = isset($_GET['page']) ? $_GET['page'] : 'home';
     if (!include_once "$page.php") {
         echo "<h1>404 Not Found</h1>";
     }

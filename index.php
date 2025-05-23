@@ -7,6 +7,10 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 <head>
     <title>Is Pekařská 74 down?</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="description" content="Is Pekařská 74 down?">
+    <meta name="keywords" content="Pekařská 74, outage, down, electricity, internet, vodafone, eg.d">
+    <meta name="author" content="Tomáš Milostný">
     <link rel="icon" type="image/png" href="electricity.png">
     <style>
         body {
@@ -24,6 +28,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                 height: 90vh;
             <?php endif; ?>
             text-align: center;
+            padding: 5px;
         }
 
         h1 {

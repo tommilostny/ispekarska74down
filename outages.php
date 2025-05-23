@@ -40,16 +40,28 @@ if (file_exists(OUTAGE_ENDS_FILE)) {
     <tr>
         <th>From</th>
         <th>To</th>
+        <th>Duration</th>
     </tr>
     <?php
     for ($i = count($starts) - 1; $i >= 0; $i--) {
         ?><tr>
             <td><?= date('d.m.Y H:i:s', $starts[$i]) ?></td><?php
             if (isset($ends[$i])) {
-                ?><td><?= date('d.m.Y H:i:s', $ends[$i]) ?></td></tr><?php
+                ?><td><?= date('d.m.Y H:i:s', $ends[$i]) ?></td>
+                <td><?php
+                    $duration_minutes = ($ends[$i] - $starts[$i]) / 60;
+                    $hours = floor($duration_minutes / 60);
+                    $minutes = round($duration_minutes % 60);
+                    echo ($hours > 0 ? $hours . " hours " : "") . $minutes . " minutes";
+                ?></td></tr><?php
                 continue;
             }
-        ?><td>Now</td></tr><?php
+            $current_time = time();
+            $duration_minutes = ($current_time - $starts[$i]) / 60;
+            $hours = floor($duration_minutes / 60);
+            $minutes = round($duration_minutes % 60);
+        ?><td>Now</td>
+        <td><?= ($hours > 0 ? $hours . " hours " : "") . $minutes . " minutes" ?></td></tr><?php
     }
 ?>
 </table>

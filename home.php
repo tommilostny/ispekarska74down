@@ -19,7 +19,7 @@ if ($httpCode == 200) {
     echo '<h1 class="neon_green">No :)</h1>';
 
     $ts = time();
-    echo "<p>Last time alive: " . date('d.m.Y H:i:s', $ts) . "</p>";
+    echo "<p>Last time checked: " . date('d.m.Y H:i:s', $ts) . "</p>";
 
     //write alive timestamp to last_alive.txt
     $file = fopen(LAST_ALIVE_TIMESTAMP_FILE, 'w');
@@ -64,6 +64,10 @@ if ($httpCode == 200) {
         $i = count($ends) - 1; 
         echo "<p><strong>Last outage</strong>:<br>From: " . date('d.m.Y H:i:s', $starts[$i]);
         echo "<br>To: " . date('d.m.Y H:i:s', $ends[$i]);
+        $duration_minutes = ($ends[$i] - $starts[$i]) / 60;
+        $hours = floor($duration_minutes / 60);
+        $minutes = round($duration_minutes % 60);
+        echo "<br>Duration: " . ($hours > 0 ? $hours . " hours " : "") . $minutes . " minutes</p>";
         echo "<br>Number of known outages: " . ($i + 1) . "</p>";
     }
     else {

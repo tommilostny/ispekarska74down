@@ -18,4 +18,5 @@ define('NEON_AZURE_DARKER', '#00cccc');
 define('NEON_AZURE_GLOW', '0 0 5px #00cccc, 0 0 15px #00cccc, 0 0 25px #00cccc');
 define('NEON_YELLOW', '#ffff00');
 define('NEON_YELLOW_GLOW', '0 0 5px #cccc00, 0 0 15px #cccc00, 0 0 25px #cccc00');
+define('NEON_YELLOW_DARKER', '#cccc00');
 ?>

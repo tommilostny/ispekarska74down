@@ -62,6 +62,11 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
             color: <?= NEON_YELLOW ?>;
             text-shadow: <?= NEON_YELLOW_GLOW ?>;
         }
+
+        .external-link:hover {
+            color: <?= NEON_YELLOW_DARKER ?>;
+            text-shadow: <?= NEON_YELLOW_GLOW ?>;
+        }
     </style>
 </head>
 <body>

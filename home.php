@@ -141,11 +141,14 @@ else {
             <a href="https://www.egd.cz/formular-bezproudi" target="_blank">Electricity (EG.D)</a>
         </td>
     </tr>
+    <!--
     <tr>
         <td colspan="2">
             <a href="http://www.tognerapartneri.cz/" target="_blank">Constuction workers (Togner &amp; Partners)</a>
         </td>
     </tr>
+    -->
 </table>
 
 <p><a href="?page=outages">Outages history</a></p>
+<p><a href="?page=music">Special Music to listen to while waiting for an outage to end :)</a></p>

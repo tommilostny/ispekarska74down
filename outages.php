@@ -33,7 +33,7 @@ if (file_exists(OUTAGE_ENDS_FILE)) {
 <table>
     <tr>
         <td><a href="?page=home">&lt;&lt; Home</a></td>
-        <td>Outages history:</td>
+        <td class="neon_green"><strong>Outages history</strong></td>
     </tr>
 </table>
 <table>

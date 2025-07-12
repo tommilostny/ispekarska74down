@@ -131,6 +131,32 @@ $specialFile = MUSIC_DIR . '/Na Pekařské 74.mp3';
 if (in_array($specialFile, $musicFiles)) {
     $musicFiles = array_merge([$specialFile], array_diff($musicFiles, [$specialFile]));
 }
+
+// If GET variable secret is set, add secret music files
+if (isset($_GET['secret']) && file_exists(SECRET_MUSIC_DIR)) {
+    $secretFiles = glob(SECRET_MUSIC_DIR . '/*.{mp3}', GLOB_BRACE);
+    if (!empty($secretFiles)) {
+        // Sort secret files by name
+        rsort($secretFiles);
+        // Add secret files to the beginning of the list
+        $musicFiles = array_merge($secretFiles, $musicFiles);
+    }
+}
+
+// Build album cover mapping in PHP
+$albumCoverMap = [];
+foreach ($musicFiles as $file) {
+    $trackName = str_replace('.mp3', '', basename($file));
+    $coverPng = ALBUM_COVERS_DIR . '/' . $trackName . '.png';
+    $coverJpg = ALBUM_COVERS_DIR . '/' . $trackName . '.jpg';
+    if (file_exists($coverPng)) {
+        $albumCoverMap[$trackName] = $coverPng;
+    } elseif (file_exists($coverJpg)) {
+        $albumCoverMap[$trackName] = $coverJpg;
+    } else {
+        $albumCoverMap[$trackName] = ALBUM_COVERS_DIR . '/default.jpg';
+    }
+}
 ?>
 <table>
     <tr>
@@ -150,6 +176,9 @@ echo '</select>';
 ?>
 </div>
 <div id="custom-player">
+    <div id="album-cover-container" style="text-align:center; margin-bottom:16px;">
+        <img id="album-cover" src="<?= ALBUM_COVERS_DIR ?>/default.jpg" alt="Album cover" style="max-width:220px; max-height:220px; border-radius:10px; box-shadow:0 0 10px #000; background:#222; object-fit:cover;" loading="lazy">
+    </div>
     <div class="player-controls">
         <div class="progress-time-group">
             <span id="current-time">0:00</span>
@@ -181,6 +210,8 @@ echo '</select>';
     const nextBtn = document.getElementById('next');
     const prevBtn = document.getElementById('prev');
     const musicFiles = <?php echo json_encode(array_values($musicFiles)); ?>;
+    const albumCover = document.getElementById('album-cover');
+    const albumCoverMap = <?php echo json_encode($albumCoverMap); ?>;
 
     function formatTime(seconds) {
         const m = Math.floor(seconds / 60);
@@ -319,4 +350,21 @@ echo '</select>';
             audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
         }
     });
+
+    function updateAlbumCover() {
+        const idx = musicSelect.selectedIndex;
+        if (idx >= 0) {
+            const option = musicSelect.options[idx];
+            const trackName = option.text;
+            albumCover.src = albumCoverMap[trackName] || albumCoverMap['default'] || '<?= ALBUM_COVERS_DIR ?>/default.jpg';
+        }
+    }
+
+    // Update cover on track change
+    musicSelect.addEventListener('change', updateAlbumCover);
+    nextBtn.addEventListener('click', updateAlbumCover);
+    prevBtn.addEventListener('click', updateAlbumCover);
+    audioPlayer.addEventListener('ended', updateAlbumCover);
+    // Also update on page load
+    updateAlbumCover();
 </script>

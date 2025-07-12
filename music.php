@@ -143,18 +143,27 @@ if (isset($_GET['secret']) && file_exists(SECRET_MUSIC_DIR)) {
     }
 }
 
-// Build album cover mapping in PHP
+// Build album cover mapping in PHP (base64-encoded data URLs)
+function imageToDataUrl($path) {
+    if (!file_exists($path)) return null;
+    $type = pathinfo($path, PATHINFO_EXTENSION);
+    $data = file_get_contents($path);
+    $base64 = base64_encode($data);
+    $mime = ($type === 'png') ? 'image/png' : 'image/jpeg';
+    return 'data:' . $mime . ';base64,' . $base64;
+}
+$loadingBase64 = imageToDataUrl(ALBUM_COVERS_DIR . '/loading.png');
 $albumCoverMap = [];
 foreach ($musicFiles as $file) {
     $trackName = str_replace('.mp3', '', basename($file));
     $coverPng = ALBUM_COVERS_DIR . '/' . $trackName . '.png';
     $coverJpg = ALBUM_COVERS_DIR . '/' . $trackName . '.jpg';
     if (file_exists($coverPng)) {
-        $albumCoverMap[$trackName] = $coverPng;
+        $albumCoverMap[$trackName] = imageToDataUrl($coverPng);
     } elseif (file_exists($coverJpg)) {
-        $albumCoverMap[$trackName] = $coverJpg;
+        $albumCoverMap[$trackName] = imageToDataUrl($coverJpg);
     } else {
-        $albumCoverMap[$trackName] = ALBUM_COVERS_DIR . '/default.jpg';
+        $albumCoverMap[$trackName] = imageToDataUrl(ALBUM_COVERS_DIR . '/Na Pekařské 74.png');
     }
 }
 ?>
@@ -177,7 +186,7 @@ echo '</select>';
 </div>
 <div id="custom-player">
     <div id="album-cover-container" style="text-align:center; margin-bottom:16px;">
-        <img id="album-cover" src="<?= ALBUM_COVERS_DIR ?>/default.jpg" alt="Album cover" style="max-width:220px; max-height:220px; border-radius:10px; box-shadow:0 0 10px #000; background:#222; object-fit:cover;" loading="lazy">
+        <img id="album-cover" src="<?= $loadingBase64 ?>" alt="Album cover" style="max-width:220px; max-height:220px; border-radius:10px; box-shadow:0 0 10px #000; background:#222; object-fit:cover;" loading="lazy">
     </div>
     <div class="player-controls">
         <div class="progress-time-group">
@@ -356,7 +365,7 @@ echo '</select>';
         if (idx >= 0) {
             const option = musicSelect.options[idx];
             const trackName = option.text;
-            albumCover.src = albumCoverMap[trackName] || albumCoverMap['default'] || '<?= ALBUM_COVERS_DIR ?>/default.jpg';
+            albumCover.src = albumCoverMap[trackName] || albumCoverMap['default'];
         }
     }
 

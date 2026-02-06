@@ -2,6 +2,10 @@
 require_once 'constants.php';
 
 if ($_SERVER['REMOTE_ADDR'] != ALLOWED_IP) {
+    $file = fopen('forbidden_access.log', 'a');
+    $ts = time();
+    fwrite($file, "Forbidden access from {$_SERVER['REMOTE_ADDR']} at $ts.\n");
+    fclose($file);
     header('HTTP/1.0 403 Forbidden');
     die();
 }

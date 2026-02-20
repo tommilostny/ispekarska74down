@@ -143,27 +143,28 @@ if (isset($_GET['secret']) && file_exists(SECRET_MUSIC_DIR)) {
     }
 }
 
-// Build album cover mapping in PHP (base64-encoded data URLs)
-function imageToDataUrl($path) {
-    if (!file_exists($path)) return null;
-    $type = pathinfo($path, PATHINFO_EXTENSION);
-    $data = file_get_contents($path);
-    $base64 = base64_encode($data);
-    $mime = ($type === 'png') ? 'image/png' : 'image/jpeg';
-    return 'data:' . $mime . ';base64,' . $base64;
+// Build album cover mapping (URLs)
+$loadingUrl = ALBUM_COVERS_DIR . '/loading.png';
+if (!file_exists($loadingUrl)) {
+    $loadingUrl = '';
 }
-$loadingBase64 = imageToDataUrl(ALBUM_COVERS_DIR . '/loading.png');
+
 $albumCoverMap = [];
+$defaultCoverFilename = 'Na Pekařské 74.png';
+$defaultCoverPath = ALBUM_COVERS_DIR . '/' . $defaultCoverFilename;
+$defaultCoverUrl = file_exists($defaultCoverPath) ? ALBUM_COVERS_DIR . '/' . rawurlencode($defaultCoverFilename) : '';
+
 foreach ($musicFiles as $file) {
     $trackName = str_replace('.mp3', '', basename($file));
+    $encodedTrackName = rawurlencode($trackName);
     $coverPng = ALBUM_COVERS_DIR . '/' . $trackName . '.png';
     $coverJpg = ALBUM_COVERS_DIR . '/' . $trackName . '.jpg';
     if (file_exists($coverPng)) {
-        $albumCoverMap[$trackName] = imageToDataUrl($coverPng);
+        $albumCoverMap[$trackName] = ALBUM_COVERS_DIR . '/' . $encodedTrackName . '.png';
     } elseif (file_exists($coverJpg)) {
-        $albumCoverMap[$trackName] = imageToDataUrl($coverJpg);
+        $albumCoverMap[$trackName] = ALBUM_COVERS_DIR . '/' . $encodedTrackName . '.jpg';
     } else {
-        $albumCoverMap[$trackName] = imageToDataUrl(ALBUM_COVERS_DIR . '/Na Pekařské 74.png');
+        $albumCoverMap[$trackName] = $defaultCoverUrl;
     }
 }
 ?>
@@ -186,7 +187,7 @@ echo '</select>';
 </div>
 <div id="custom-player">
     <div id="album-cover-container" style="text-align:center; margin-bottom:16px;">
-        <img id="album-cover" src="<?= $loadingBase64 ?>" alt="Album cover" style="max-width:220px; max-height:220px; border-radius:10px; box-shadow:0 0 10px #000; background:#222; object-fit:cover;" loading="lazy">
+        <img id="album-cover" src="<?= $loadingUrl ?>" alt="Album cover" style="max-width:220px; max-height:220px; border-radius:10px; box-shadow:0 0 10px #000; background:#222; object-fit:cover;" loading="lazy">
     </div>
     <div class="player-controls">
         <div class="progress-time-group">

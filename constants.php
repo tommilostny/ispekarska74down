@@ -13,6 +13,7 @@ define('ALLOWED_IP', '86.49.241.212');
 define('MUSIC_DIR', 'music');
 define('SECRET_MUSIC_DIR', MUSIC_DIR . '/secret');
 define('ALBUM_COVERS_DIR', MUSIC_DIR . '/album_covers');
+define('LYRICS_DIR', MUSIC_DIR . '/lyrics');
 define('NEON_GREEN', '#00ffaa');
 define('NEON_GREEN_GLOW', '0 0 5px #00ee99, 0 0 15px #00ee99, 0 0 25px #00ee99');
 define('NEON_RED', '#ff0000');

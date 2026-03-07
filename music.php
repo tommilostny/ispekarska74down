@@ -12,7 +12,7 @@ require_once 'constants.php';
         font-size: 1.2rem;
         margin: 20px auto;
         margin-top: 5px;
-        font-family: 'Courier New', Courier, monospace;
+        font-family: 'Roboto Mono', monospace;
         background-color: #222;
         color: #fff;
         border: 2px solid #333;
@@ -46,6 +46,7 @@ require_once 'constants.php';
         padding: 20px;
         color: #fff;
         box-sizing: border-box;
+        position: relative;
     }
     #lyrics-container {
         /* Base styles */
@@ -130,17 +131,28 @@ require_once 'constants.php';
     }
     #custom-player button {
         background: none;
-        border: none;
-        color: <?= NEON_AZURE ?>;
+        border: 2px solid <?= NEON_GREEN ?>;
+        color: <?= NEON_GREEN ?>;
         font-family: inherit;
         cursor: pointer;
-        transition: color 0.2s;
+        transition: all 0.2s;
+        white-space: nowrap;
+        line-height: 1;
+        font-weight: bold;
+        font-size: 1.2rem;
+        padding: 8px 16px;
+        width: 66px;
+        border-radius: 5px;
     }
-    #play-pause {
-        font-size: 2rem;
+    #custom-player button:hover {
+        background-color: <?= NEON_GREEN ?>;
+        color: #000;
+        box-shadow: <?= NEON_GREEN_GLOW ?>;
+        text-shadow: none;
     }
-    #prev, #next {
-        font-size: 1.5rem;
+    #custom-player button:active {
+        transform: scale(0.92);
+        transition: transform 0.05s;
     }
     #progress-bar {
         flex: 1;
@@ -163,8 +175,78 @@ require_once 'constants.php';
         margin-bottom: 5px;
         margin-top: 5px;
     }
+    #track-info-btn {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(34, 34, 34, 0.8);
+        color: #aaa;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 24px;
+        cursor: pointer;
+        font-size: 14px;
+        border: 1px solid #444;
+        z-index: 10;
+        font-family: 'Roboto Mono', monospace;
+    }
+    #track-info-btn:hover {
+        color: #fff;
+        border-color: <?= NEON_AZURE ?>;
+        color: <?= NEON_AZURE ?>;
+    }
+    #track-info-tooltip {
+        position: absolute;
+        bottom: 40px;
+        right: 10px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        padding: 12px;
+        border-radius: 5px;
+        width: 220px;
+        display: none;
+        font-size: 0.85rem;
+        color: #ddd;
+        text-align: left;
+        z-index: 20;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+        font-family: 'Roboto Mono', monospace;
+    }
+    #track-info-tooltip.visible {
+        display: block;
+    }
+    .info-row {
+        margin-bottom: 8px;
+        word-break: break-word;
+        line-height: 1.3;
+    }
+    .info-row:last-child {
+        margin-bottom: 0;
+    }
+    .info-label {
+        color: #777;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+        letter-spacing: 0.5px;
+    }
+    /* Ensure screen content fills height for matrix rain background */
+    .screen-content {
+        flex: 1;
+        position: relative;
+    }
+    /* Ensure content sits above matrix rain */
+    .main-player-wrapper, table {
+        position: relative;
+        z-index: 1;
+    }
 </style>
 <?php
+if (isset($_GET['secret'])) {
+    echo '<canvas id="matrix-rain" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; opacity:0.15; pointer-events:none;"></canvas>';
+}
 
 /** Select all files from the music folder */
 $musicFiles = glob(MUSIC_DIR . '/*.{mp3}', GLOB_BRACE);
@@ -200,9 +282,111 @@ if (!file_exists($loadingUrl)) {
 
 $albumCoverMap = [];
 $lyricsMap = [];
+$metadataMap = [];
 $defaultCoverFilename = 'Na Pekařské 74.png';
 $defaultCoverPath = ALBUM_COVERS_DIR . '/' . $defaultCoverFilename;
 $defaultCoverUrl = file_exists($defaultCoverPath) ? ALBUM_COVERS_DIR . '/' . rawurlencode($defaultCoverFilename) : '';
+
+function getMp3Info($path) {
+    $info = [
+        'size' => filesize($path),
+        'artist' => '',
+        'title' => '',
+        'album' => '',
+        'year' => '',
+        'sample_rate' => 0,
+        'channels' => 0,
+        'created_date' => filectime($path)
+    ];
+    
+    $fp = fopen($path, 'rb');
+    if (!$fp) return $info;
+
+    // Try ID3v2 first
+    $audioStart = 0;
+    rewind($fp);
+    $header = fread($fp, 10);
+    if (substr($header, 0, 3) === 'ID3') {
+        $major = ord($header[3]);
+        if ($major >= 3) {
+            $size = (ord($header[6]) << 21) | (ord($header[7]) << 14) | (ord($header[8]) << 7) | ord($header[9]);
+            $tagData = fread($fp, $size);
+            $audioStart = 10 + $size;
+            $pos = 0;
+            while ($pos < strlen($tagData)) {
+                if ($pos + 10 > strlen($tagData)) break;
+                $frameId = substr($tagData, $pos, 4);
+                if (ord($frameId[0]) === 0) break;
+                $frameSize = ($major === 3) ? unpack('N', substr($tagData, $pos + 4, 4))[1] : 
+                             ((ord($tagData[$pos+4]) << 21) | (ord($tagData[$pos+5]) << 14) | (ord($tagData[$pos+6]) << 7) | ord($tagData[$pos+7]));
+                
+                if ($pos + 10 + $frameSize > strlen($tagData)) break;
+                $content = substr($tagData, $pos + 10, $frameSize);
+                
+                if (in_array($frameId, ['TIT2', 'TPE1', 'TALB', 'TYER', 'TDRC'])) {
+                    $encoding = ord($content[0]);
+                    $text = substr($content, 1);
+                    if ($encoding === 0) $text = mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1');
+                    else if ($encoding === 1) $text = mb_convert_encoding($text, 'UTF-8', 'UTF-16');
+                    else if ($encoding === 2) $text = mb_convert_encoding($text, 'UTF-8', 'UTF-16BE');
+                    else if ($encoding === 3) $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+                    $text = str_replace("\0", "", $text);
+                    
+                    if ($frameId === 'TIT2') $info['title'] = $text;
+                    if ($frameId === 'TPE1') $info['artist'] = $text;
+                    if ($frameId === 'TALB') $info['album'] = $text;
+                    if ($frameId === 'TYER' || $frameId === 'TDRC') $info['year'] = substr($text, 0, 4);
+                }
+                $pos += 10 + $frameSize;
+            }
+        }
+    }
+
+    // Parse MP3 Frame Header for Sample Rate and Channels
+    fseek($fp, $audioStart);
+    $buffer = fread($fp, 4096); // Read 4KB to find sync
+    $len = strlen($buffer);
+    for ($i = 0; $i < $len - 3; $i++) {
+        // Sync word is 11 bits set to 1 (0xFF followed by 111xxxxx)
+        if (ord($buffer[$i]) === 0xFF && (ord($buffer[$i+1]) & 0xE0) === 0xE0) {
+            $b2 = ord($buffer[$i+1]);
+            $b3 = ord($buffer[$i+2]);
+            $b4 = ord($buffer[$i+3]);
+            
+            $ver = ($b2 & 0x18) >> 3; // 00=2.5, 10=2, 11=1
+            $lay = ($b2 & 0x06) >> 1; // 01=III
+            if ($ver === 1 || $lay === 0) continue; // Invalid version/layer
+            
+            $srateIdx = ($b3 & 0x0C) >> 2;
+            if ($srateIdx === 3) continue; // Reserved
+            
+            $rates = [
+                3 => [44100, 48000, 32000], // V1
+                2 => [22050, 24000, 16000], // V2
+                0 => [11025, 12000, 8000]   // V2.5
+            ];
+            if (isset($rates[$ver][$srateIdx])) $info['sample_rate'] = $rates[$ver][$srateIdx];
+            
+            $info['channels'] = (($b4 & 0xC0) >> 6) === 3 ? 1 : 2;
+            break;
+        }
+    }
+
+    // Fallback ID3v1
+    if (empty($info['artist']) || empty($info['title'])) {
+        fseek($fp, -128, SEEK_END);
+        $tag = fread($fp, 128);
+        if (substr($tag, 0, 3) === 'TAG') {
+            if (empty($info['title'])) $info['title'] = trim(substr($tag, 3, 30));
+            if (empty($info['artist'])) $info['artist'] = trim(substr($tag, 33, 30));
+            if (empty($info['album'])) $info['album'] = trim(substr($tag, 63, 30));
+            if (empty($info['year'])) $info['year'] = trim(substr($tag, 93, 4));
+        }
+    }
+    fclose($fp);
+    foreach ($info as $k => $v) if (is_string($v)) $info[$k] = trim($v);
+    return $info;
+}
 
 foreach ($musicFiles as $file) {
     $trackName = str_replace('.mp3', '', basename($file));
@@ -221,6 +405,8 @@ foreach ($musicFiles as $file) {
     if (file_exists($lyricsFile)) {
         $lyricsMap[$trackName] = LYRICS_DIR . '/' . $encodedTrackName . '.txt';
     }
+    
+    $metadataMap[$trackName] = getMp3Info($file);
 }
 ?>
 <table>
@@ -254,11 +440,14 @@ foreach ($musicFiles as $file) {
             <span id="duration">0:00</span>
         </div>
         <div class="button-group">
-            <button id="prev">⏮️</button>
-            <button id="play-pause">▶️</button>
-            <button id="next">⏭️</button>
+            <button id="prev">&lt;&lt;</button>
+            <button id="play-pause">&gt;</button>
+            <button id="next">&gt;&gt;</button>
+            <button id="shuffle" title="Shuffle">RND</button>
         </div>
     </div>
+    <div id="track-info-btn" title="Track Info">i</div>
+    <div id="track-info-tooltip"></div>
 </div>
 <p style="text-align:center; font-size:0.95rem; color:#aaa; margin-top:8px; margin-bottom:24px;">
     Controls: <b>Space</b> = Play/Pause, <b>←/→</b> = Previous/Next, <b>↑/↓</b> = Seek ±5s, or use the mouse.
@@ -274,6 +463,58 @@ foreach ($musicFiles as $file) {
     Your browser does not support the audio element.
 </audio>
 <script>
+{
+    <?php if (isset($_GET['secret'])): ?>
+    const matrixCanvas = document.getElementById('matrix-rain');
+    let matrixInterval;
+    let resizeMatrix;
+    if (matrixCanvas) {
+        const matrixCtx = matrixCanvas.getContext('2d');
+        const fontSize = 16;
+        const rainDrops = [];
+
+        resizeMatrix = () => {
+            matrixCanvas.width = matrixCanvas.offsetWidth;
+            matrixCanvas.height = matrixCanvas.offsetHeight;
+            const columns = Math.ceil(matrixCanvas.width / fontSize);
+            for (let x = 0; x < columns; x++) {
+                if (rainDrops[x] === undefined) {
+                    rainDrops[x] = Math.random() * (matrixCanvas.height / fontSize);
+                }
+            }
+        };
+        
+        // Initial resize
+        resizeMatrix();
+        window.addEventListener('resize', resizeMatrix);
+
+        const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+        const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const nums = '0123456789';
+        const alphabet = katakana + latin + nums;
+
+        const drawMatrix = () => {
+            matrixCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+            matrixCtx.fillStyle = '#0F0';
+            matrixCtx.font = fontSize + 'px monospace';
+
+            for(let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                matrixCtx.fillText(text, i*fontSize, rainDrops[i]*fontSize);
+
+                if(rainDrops[i]*fontSize > matrixCanvas.height && Math.random() > 0.975){
+                    rainDrops[i] = 0;
+                }
+                rainDrops[i]++;
+            }
+        };
+
+        matrixInterval = setInterval(drawMatrix, 30);
+    }
+    <?php endif; ?>
+
     const audioPlayer = document.getElementById('audio-player');
     const audioSource = document.getElementById('audio-source');
     const playPauseBtn = document.getElementById('play-pause');
@@ -283,15 +524,20 @@ foreach ($musicFiles as $file) {
     const musicSelect = document.getElementById('music-select');
     const nextBtn = document.getElementById('next');
     const prevBtn = document.getElementById('prev');
-    const musicFiles = <?php echo json_encode(array_values($musicFiles)); ?>;
+    const shuffleBtn = document.getElementById('shuffle');
+    let musicFiles = <?php echo json_encode(array_values($musicFiles)); ?>;
     const albumCover = document.getElementById('album-cover');
     const albumCoverMap = <?php echo json_encode($albumCoverMap); ?>;
     const lyricsMap = <?php echo json_encode($lyricsMap); ?>;
+    const metadataMap = <?php echo json_encode($metadataMap); ?>;
+    const infoBtn = document.getElementById('track-info-btn');
+    const infoTooltip = document.getElementById('track-info-tooltip');
     const lyricsContainer = document.getElementById('lyrics-container');
     const lyricsContent = document.getElementById('lyrics-content');
     const canvas = document.getElementById('visualizer');
     const canvasCtx = canvas.getContext('2d');
     let audioContext, analyser, dataArray;
+    let animationFrameId;
 
     function formatTime(seconds) {
         const m = Math.floor(seconds / 60);
@@ -307,6 +553,7 @@ foreach ($musicFiles as $file) {
     function updateDuration() {
         progressBar.max = audioPlayer.duration;
         durationEl.textContent = formatTime(audioPlayer.duration);
+        updateMetadataTooltip();
     }
 
     function initAudioVisualizer() {
@@ -332,7 +579,7 @@ foreach ($musicFiles as $file) {
     }
 
     function drawVisualizer() {
-        requestAnimationFrame(drawVisualizer);
+        animationFrameId = requestAnimationFrame(drawVisualizer);
         if (!analyser) return;
         
         analyser.getByteFrequencyData(dataArray);
@@ -370,11 +617,14 @@ foreach ($musicFiles as $file) {
         }
     });
 
+    const ASCII_PLAY = ">";
+    const ASCII_PAUSE = "||";
+
     audioPlayer.addEventListener('play', function() {
-        playPauseBtn.textContent = '⏸️';
+        playPauseBtn.textContent = ASCII_PAUSE;
     });
     audioPlayer.addEventListener('pause', function() {
-        playPauseBtn.textContent = '▶️';
+        playPauseBtn.textContent = ASCII_PLAY;
     });
     audioPlayer.addEventListener('timeupdate', updateProgress);
     audioPlayer.addEventListener('loadedmetadata', function() {
@@ -439,6 +689,37 @@ foreach ($musicFiles as $file) {
         changeMusic(musicFiles[idx]);
     });
 
+    shuffleBtn.addEventListener('click', function() {
+        // Create array of option objects
+        const options = Array.from(musicSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text
+        }));
+
+        // Fisher-Yates shuffle
+        for (let i = options.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [options[i], options[j]] = [options[j], options[i]];
+        }
+
+        // Rebuild select and update musicFiles
+        musicSelect.innerHTML = '';
+        musicFiles = [];
+        options.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.value;
+            el.textContent = opt.text;
+            musicSelect.appendChild(el);
+            musicFiles.push(opt.value);
+        });
+
+        // Pick a random song to play
+        const randomIdx = Math.floor(Math.random() * musicFiles.length);
+        musicSelect.selectedIndex = randomIdx;
+        changeMusic(musicFiles[randomIdx]);
+        updateTrackInfo();
+    });
+
     // Auto play next track when current ends
     audioPlayer.addEventListener('ended', function() {
         let idx = getCurrentIndex();
@@ -459,7 +740,7 @@ foreach ($musicFiles as $file) {
         });
     }
 
-    document.addEventListener('keydown', function(e) {
+    const onKeyDown = function(e) {
         // Ignore if focus is on input, textarea, or select
         const tag = document.activeElement.tagName.toLowerCase();
         if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -484,7 +765,8 @@ foreach ($musicFiles as $file) {
             e.preventDefault();
             audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
         }
-    });
+    };
+    document.addEventListener('keydown', onKeyDown);
 
     function updateAlbumCover() {
         const idx = musicSelect.selectedIndex;
@@ -521,10 +803,55 @@ foreach ($musicFiles as $file) {
         }
     }
 
+    infoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        infoTooltip.classList.toggle('visible');
+    });
+
+    const onDocClick = (e) => {
+        if (!infoBtn.contains(e.target) && !infoTooltip.contains(e.target)) {
+            infoTooltip.classList.remove('visible');
+        }
+    };
+    document.addEventListener('click', onDocClick);
+
+    function updateMetadataTooltip() {
+        const idx = musicSelect.selectedIndex;
+        if (idx >= 0) {
+            const option = musicSelect.options[idx];
+            const trackName = option.text;
+            const meta = metadataMap[trackName] || {};
+            const size = meta.size || 0;
+            const duration = audioPlayer.duration;
+            
+            let bitrate = 'Calculating...';
+            if (size > 0 && duration > 0) {
+                const kbps = Math.round((size * 8) / duration / 1000);
+                bitrate = kbps + ' kbps';
+            }
+            
+            let html = '';
+            if (meta.artist) html += `<div class="info-row"><div class="info-label">Artist</div>${meta.artist}</div>`;
+            if (meta.album) html += `<div class="info-row"><div class="info-label">Album</div>${meta.album}</div>`;
+            if (meta.year) html += `<div class="info-row"><div class="info-label">Year</div>${meta.year}</div>`;
+            if (meta.sample_rate) html += `<div class="info-row"><div class="info-label">Sample Rate</div>${meta.sample_rate} Hz</div>`;
+            if (meta.channels) html += `<div class="info-row"><div class="info-label">Channels</div>${meta.channels == 1 ? 'Mono' : 'Stereo'}</div>`;
+            if (meta.created_date) {
+                const date = new Date(meta.created_date * 1000);
+                html += `<div class="info-row"><div class="info-label">Created</div>${date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>`;
+            }
+            html += `<div class="info-row"><div class="info-label">Bitrate</div>${bitrate}</div>`;
+            html += `<div class="info-row"><div class="info-label">File Size</div>${(size / 1024 / 1024).toFixed(2)} MB</div>`;
+            
+            infoTooltip.innerHTML = html;
+        }
+    }
+
     // Update cover on track change
     function updateTrackInfo() {
         updateAlbumCover();
         updateLyrics();
+        updateMetadataTooltip();
     }
     musicSelect.addEventListener('change', updateTrackInfo);
     nextBtn.addEventListener('click', updateTrackInfo);
@@ -532,4 +859,19 @@ foreach ($musicFiles as $file) {
     audioPlayer.addEventListener('ended', updateTrackInfo);
     // Also update on page load
     updateTrackInfo();
+
+    // Cleanup function for SPA navigation
+    window.pageCleanup = function() {
+        document.removeEventListener('keydown', onKeyDown);
+        document.removeEventListener('click', onDocClick);
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close();
+        }
+        <?php if (isset($_GET['secret'])): ?>
+        if (matrixInterval) clearInterval(matrixInterval);
+        if (resizeMatrix) window.removeEventListener('resize', resizeMatrix);
+        <?php endif; ?>
+    };
+}
 </script>

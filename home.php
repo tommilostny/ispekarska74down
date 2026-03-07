@@ -5,6 +5,17 @@ if (__FILE__ == $_SERVER['SCRIPT_FILENAME']) {
 }
 require_once 'constants.php';
 
+echo '<style>
+    .secret-link, .secret-link:visited, .secret-link:active, .secret-link:hover {
+        color: inherit !important;
+        text-shadow: inherit !important;
+        text-decoration: none !important;
+        cursor: text !important;
+        font-weight: inherit !important;
+        background-color: transparent !important;
+    }
+</style>';
+
 //curl request to tafhome.online, check if the response is html or an error
 //if the response is html, then the website is up and running
 //if the response is an error, then the website is down
@@ -16,7 +27,7 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($httpCode == 200) {
-    echo '<h1 class="neon_green">No :)</h1>';
+    echo '<h1 class="neon_green">No <a href="?page=music&amp;secret=1" class="secret-link">:)</a></h1>';
 
     $ts = time();
     echo "<p>Last time checked: " . date('d.m.Y H:i:s', $ts) . "</p>";
@@ -80,7 +91,7 @@ if ($httpCode == 200) {
     fclose($file);
 }
 else {
-    echo '<h1 class="neon_red">Yes :(</h1>';
+    echo '<h1 class="neon_red">Yes <a href="?page=music&amp;secret=1" class="secret-link">:(</a></h1>';
 
     //check last_alive.txt file for the last timestamp
     if (file_exists(LAST_ALIVE_TIMESTAMP_FILE)) {

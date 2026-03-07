@@ -12,10 +12,38 @@ $login_error = false;
 if (isset($_POST['password'])) {
     if ($_POST['password'] === 'pekar74') {
         $_SESSION['auth'] = true;
+        unset($_SESSION['failed_attempts']);
         header("Location: " . $_SERVER['REQUEST_URI']);
         exit;
     } else {
         $login_error = true;
+        
+        // Log failed attempt
+        $log_entry = sprintf("[%s] Failed login from IP: %s | UA: %s\n", date('Y-m-d H:i:s'), $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT']);
+        file_put_contents('failed_logins.txt', $log_entry, FILE_APPEND);
+
+        if (!isset($_SESSION['failed_attempts'])) {
+            $_SESSION['failed_attempts'] = 0;
+        }
+        $_SESSION['failed_attempts']++;
+
+        if ($_SESSION['failed_attempts'] === 3) {
+            $to = 'tommilostny@live.com';
+            $subject = 'Security Alert: Failed Login Attempts - ispekarska74down.xf.cz';
+            
+            $headers = "MIME-Version: 1.0" . "\r\n";
+            $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+
+            $message = "<html><body>";
+            $message .= "<h2>Security Alert: 3 Failed Login Attempts</h2>";
+            $message .= "<p>Site: <strong>ispekarska74down.xf.cz</strong></p>";
+            $message .= "<p><strong>Time:</strong> " . date('Y-m-d H:i:s') . "</p>";
+            $message .= "<p><strong>IP Address:</strong> " . $_SERVER['REMOTE_ADDR'] . "</p>";
+            $message .= "<p><strong>User Agent:</strong> " . $_SERVER['HTTP_USER_AGENT'] . "</p>";
+            $message .= "</body></html>";
+            
+            @mail($to, $subject, $message, $headers);
+        }
     }
 }
 
@@ -128,8 +156,8 @@ if (!isset($_SESSION['auth'])) {
 
         .logout-btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 10px;
+            right: 10px;
             color: <?= NEON_RED ?> !important;
             text-shadow: <?= NEON_RED_GLOW ?>;
             border: 1px solid <?= NEON_RED ?>;
@@ -141,7 +169,7 @@ if (!isset($_SESSION['auth'])) {
         }
         .logout-btn:hover {
             background-color: <?= NEON_RED ?>;
-            color: #000;
+            color: #000 !important;
             box-shadow: <?= NEON_RED_GLOW ?>;
         }
 
@@ -259,6 +287,8 @@ if (!isset($_SESSION['auth'])) {
         </div>
         <div class="crt-overlay"></div>
     </div>
+    <audio id="crt-on-sound" src="crt_on.mp3" preload="auto"></audio>
+    <audio id="crt-off-sound" src="crt_off.mp3" preload="auto"></audio>
     <script>
         // Handle bfcache restores (browser back button from cache)
         window.addEventListener('pageshow', (event) => {
@@ -269,12 +299,24 @@ if (!isset($_SESSION['auth'])) {
             }
         });
 
+        const sndOn = document.getElementById('crt-on-sound');
+        const sndOff = document.getElementById('crt-off-sound');
+
+        function playCrtSound(type) {
+            const audio = type === 'on' ? sndOn : sndOff;
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log('Autoplay prevented:', e));
+        }
+
+        // Try to play on initial load
+        window.addEventListener('load', () => playCrtSound('on'));
+
         function attachLinkListeners() {
             document.querySelectorAll('a[target="_blank"]').forEach(link => {
                 link.classList.add('external-link');
             });
 
-            document.querySelectorAll('a:not([target="_blank"]):not(.logout-btn)').forEach(link => {
+            document.querySelectorAll('a:not([target="_blank"]):not(.logout-btn):not([href^="mailto:"])').forEach(link => {
                 // Remove old listeners to prevent duplicates if re-running
                 link.removeEventListener('click', handleLinkClick);
                 link.addEventListener('click', handleLinkClick);
@@ -296,6 +338,7 @@ if (!isset($_SESSION['auth'])) {
 
         function handleLogoutClick(e) {
             e.preventDefault();
+            playCrtSound('off');
             document.body.classList.remove('turn-on');
             document.body.classList.add('turn-off');
             setTimeout(() => {
@@ -305,6 +348,7 @@ if (!isset($_SESSION['auth'])) {
 
         async function loadPage(url, pushState = true) {
             // 1. Animate Turn Off
+            playCrtSound('off');
             document.body.classList.remove('turn-on');
             document.body.classList.add('turn-off');
 
@@ -349,6 +393,7 @@ if (!isset($_SESSION['auth'])) {
                 // Force reflow to restart turn-on animation
                 void document.body.offsetWidth;
                 document.body.classList.add('turn-on'); // Ensure class is there (or rely on removing turn-off)
+                playCrtSound('on');
                 
                 // Remove the turn-on class after animation to allow re-triggering later if needed
                 // But CSS has it on 'body' by default. 

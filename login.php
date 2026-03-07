@@ -70,6 +70,10 @@ $show_anim = !$login_error;
         opacity: 0;
         animation: fadeIn 0.5s ease-in 2.5s forwards;
     }
+    .anim-fade-3 {
+        opacity: 0;
+        animation: fadeIn 0.5s ease-in 3s forwards;
+    }
     @keyframes typing { from { width: 0 } to { width: 100% } }
     @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: <?= NEON_GREEN ?> } }
     @keyframes fadeIn { to { opacity: 1; } }
@@ -86,6 +90,19 @@ $show_anim = !$login_error;
         -webkit-text-fill-color: <?= NEON_GREEN ?> !important;
         transition: background-color 5000s ease-in-out 0s;
     }
+
+    @media (max-width: 600px) {
+        .input-wrapper {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .prompt {
+            margin-bottom: 5px;
+        }
+        #password-input {
+            width: 100%;
+        }
+    }
 </style>
 
 <div class="login-container">
@@ -101,6 +118,12 @@ $show_anim = !$login_error;
 
     <?php if ($login_error): ?>
     <div class="error-msg">ACCESS DENIED: INVALID CREDENTIALS</div>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['failed_attempts']) && $_SESSION['failed_attempts'] >= 3): ?>
+    <div class="terminal-line <?= $show_anim ? 'anim-fade-3' : '' ?>" style="margin-top: 10px;">
+        <a href="mailto:tommilostny@live.com" class="external-link">Request a HINT via email to tommilostny@live.com</a>
+    </div>
     <?php endif; ?>
 </div>
 

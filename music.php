@@ -177,7 +177,7 @@ require_once 'constants.php';
     }
     #track-info-btn {
         position: absolute;
-        bottom: 10px;
+        top: 10px;
         right: 10px;
         background: rgba(34, 34, 34, 0.8);
         color: #aaa;
@@ -199,7 +199,7 @@ require_once 'constants.php';
     }
     #track-info-tooltip {
         position: absolute;
-        bottom: 40px;
+        top: 42px;
         right: 10px;
         background: #1a1a1a;
         border: 1px solid #333;

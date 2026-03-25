@@ -1,7 +1,12 @@
 <?php
 if (__FILE__ == $_SERVER['SCRIPT_FILENAME']) {
-    header('HTTP/1.0 403 Forbidden');
-    die();
+    $apiKeyFile = '.api_key.txt';
+    $apiKey = file_exists($apiKeyFile) ? trim(file_get_contents($apiKeyFile)) : false;
+
+    if ($apiKey === false || !isset($_POST['api_key']) || $_POST['api_key'] !== $apiKey) {
+        header('HTTP/1.0 403 Forbidden');
+        die();
+    }
 }
 require_once 'constants.php';
 
